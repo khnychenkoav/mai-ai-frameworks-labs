@@ -1,5 +1,3 @@
-"""Собственные реализации моделей."""
-
 from dataclasses import dataclass
 
 import numpy as np
@@ -17,7 +15,6 @@ def _class_weights(labels, n_classes, mode):
 
 
 class Neighbors:
-    """KNN с полным перебором соседей."""
 
     def __init__(self, classification, n_neighbors=5, p=2, weights="uniform"):
         self.classification = classification
@@ -46,7 +43,6 @@ class Neighbors:
             nearest = np.argpartition(distance, k - 1, axis=1)[:, :k]
             distances = np.take_along_axis(distance, nearest, axis=1)
             boundary = distances.max(axis=1)
-            # При равном расстоянии берем соседа с меньшим индексом.
             total_tied = (distance == boundary[:, None]).sum(axis=1)
             selected_tied = (distances == boundary[:, None]).sum(axis=1)
             for row in np.flatnonzero(total_tied > selected_tied):
@@ -70,7 +66,6 @@ class Neighbors:
 
 
 class LinearLeastSquares:
-    """OLS и L2-регуляризация через расширенную задачу МНК."""
 
     def __init__(self, alpha=0.0):
         self.alpha = alpha
@@ -92,7 +87,6 @@ class LinearLeastSquares:
 
 
 class SoftmaxRegression:
-    """Мультиномиальная cross-entropy, аналитический градиент и L-BFGS."""
 
     def __init__(self, C=1.0, class_weight=None, max_iter=500):
         self.C = C
@@ -142,7 +136,6 @@ class SoftmaxRegression:
 
 @njit(cache=True)
 def _best_split(X, y, weight, features, min_leaf, n_classes):
-    """Поиск порога по накопленным суммам."""
     n = len(y)
     best_score = np.inf
     best_feature = -1
@@ -221,7 +214,6 @@ class _Node:
 
 
 class Cart:
-    """Бинарное дерево CART с критерием Gini или SSE."""
 
     def __init__(
         self, classification, max_depth=None, min_samples_leaf=1, max_features=None,
@@ -287,7 +279,6 @@ class Cart:
             feature, threshold, score = _best_split(
                 X_node, y_node, w_node, features[:feature_count], self.min_samples_leaf, n_classes
             )
-            # Если разреза нет, проверяем оставшиеся признаки.
             if feature < 0 and feature_count < n_features:
                 feature, threshold, score = _best_split(
                     X_node, y_node, w_node, features[feature_count:], self.min_samples_leaf, n_classes
@@ -318,7 +309,6 @@ class Cart:
 
 
 class BootstrapForest:
-    """Лес с выборками с возвращением и случайными признаками."""
 
     def __init__(
         self, classification, n_estimators=32, max_depth=None, min_samples_leaf=1,
@@ -358,7 +348,6 @@ class BootstrapForest:
 
 
 class GradientTrees:
-    """Бустинг CART для квадратичной ошибки и мультиномиальной log-loss."""
 
     def __init__(
         self, classification, n_estimators=32, learning_rate=0.1, max_depth=2,

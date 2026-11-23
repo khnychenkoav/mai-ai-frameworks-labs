@@ -1,5 +1,3 @@
-"""Запуск ноутбуков с сохранением результатов."""
-
 import argparse
 from pathlib import Path
 from tempfile import NamedTemporaryFile
@@ -20,7 +18,7 @@ NOTEBOOKS = {
 
 
 def main():
-    parser = argparse.ArgumentParser(description=__doc__)
+    parser = argparse.ArgumentParser(description="Запуск ноутбуков с сохранением результатов.")
     parser.add_argument("labs", choices=[*NOTEBOOKS, "all"], nargs="*", default=None)
     options = parser.parse_args()
     selected = list(NOTEBOOKS) if not options.labs or "all" in options.labs else options.labs

@@ -1,5 +1,3 @@
-"""Обучение и сравнение моделей."""
-
 import json
 from dataclasses import dataclass
 from pathlib import Path
@@ -248,7 +246,6 @@ def _search(lab, task):
 
 
 def select_candidates(lab, tasks):
-    """Перебирает гипотезы только на фолдах обучающей выборки."""
     with threadpool_limits(limits=1):
         return {task.key: _search(lab, task) for task in tasks}
 
@@ -280,7 +277,6 @@ def _evaluate(lab, task, baseline, tuned):
 
 
 def evaluate_holdout(lab, tasks, selections):
-    """Обучение на train и оценка на тесте."""
     with threadpool_limits(limits=1):
         return {task.key: _evaluate(lab, task, *selections[task.key][:2]) for task in tasks}
 
