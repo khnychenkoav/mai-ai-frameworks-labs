@@ -1,4 +1,4 @@
-"""Выполняет лабораторные по порядку и сохраняет результаты в ноутбуках."""
+"""Запуск ноутбуков с сохранением результатов."""
 
 import argparse
 from pathlib import Path
@@ -45,7 +45,7 @@ def main():
         finally:
             if temporary is not None:
                 temporary.unlink(missing_ok=True)
-        print(f"Сохранён {path.name}", flush=True)
+        print(f"Сохранен {path.name}", flush=True)
 
 
 if __name__ == "__main__":

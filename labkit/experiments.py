@@ -1,4 +1,4 @@
-"""Четыре режима оценки с одинаковым протоколом для каждой лабораторной."""
+"""Обучение и сравнение моделей."""
 
 import json
 from dataclasses import dataclass
@@ -32,7 +32,7 @@ from labkit.models import BootstrapForest, Cart, GradientTrees, LinearLeastSquar
 VERSIONS = ("sklearn baseline", "sklearn tuned", "own baseline", "own tuned")
 ALGORITHMS = {
     1: "KNN",
-    2: "Логистическая / линейная регрессии",
+    2: "Логистическая и линейная регрессии",
     3: "Решающее дерево",
     4: "Случайный лес",
     5: "Градиентный бустинг",
@@ -237,7 +237,7 @@ def _search(lab, task):
         rows.append({
             "гипотеза": candidate.label, "признаки": candidate.preparation,
             "настройки": json.dumps(candidate.parameters or {}, ensure_ascii=False),
-            "CV среднее": np.mean(scores), "CV σ": np.std(scores, ddof=1),
+            "CV среднее": np.mean(scores), "CV std": np.std(scores, ddof=1),
             **{f"фолд {i}": score for i, score in enumerate(scores, 1)},
         })
     table = pd.DataFrame(rows)
@@ -280,7 +280,7 @@ def _evaluate(lab, task, baseline, tuned):
 
 
 def evaluate_holdout(lab, tasks, selections):
-    """Обучает финальные конфигурации на всём train и оценивает holdout."""
+    """Обучение на train и оценка на тесте."""
     with threadpool_limits(limits=1):
         return {task.key: _evaluate(lab, task, *selections[task.key][:2]) for task in tasks}
 
@@ -301,9 +301,9 @@ def plot_training(tasks):
     fig, axes = plt.subplots(1, 2, figsize=(11, 3.5), layout="constrained")
     labels, counts = np.unique(classification.y_train, return_counts=True)
     axes[0].bar(labels, counts, color="#286780")
-    axes[0].set(xlabel="Код переписчика", ylabel="Фрагменты", title="Распределение классов в train")
+    axes[0].set(xlabel="Код переписчика", ylabel="Фрагменты", title="Классы на обучении")
     axes[1].hist(regression.y_train, bins=30, color="#51826d")
-    axes[1].set(xlabel="Суммарная мощность, МВт", ylabel="Конфигурации", title="Распределение мощности в train")
+    axes[1].set(xlabel="Суммарная мощность, МВт", ylabel="Конфигурации", title="Мощность на обучении")
     plt.show()
 
 
@@ -317,12 +317,12 @@ def plot_predictions(tasks, results):
     ConfusionMatrixDisplay(matrix, display_labels=labels).plot(
         ax=axes[0], include_values=False, cmap="Blues", colorbar=True,
     )
-    axes[0].set(title="Avila · доли в строках", xlabel="Предсказанный класс", ylabel="Истинный класс")
+    axes[0].set(title="Матрица ошибок Avila", xlabel="Предсказанный класс", ylabel="Истинный класс")
     observed = regression.y_test
     axes[1].scatter(observed, regression_prediction, s=8, alpha=0.30, color="#286780")
     limits = [min(observed.min(), regression_prediction.min()), max(observed.max(), regression_prediction.max())]
     axes[1].plot(limits, limits, color="#b34d37", linestyle="--", linewidth=1)
-    axes[1].set(title="Tasmania · прогноз против значения", xlabel="Мощность по симулятору, МВт",
+    axes[1].set(title="Прогноз мощности Tasmania", xlabel="Мощность по симулятору, МВт",
                 ylabel="Предсказанная мощность, МВт")
     plt.show()
 
@@ -348,28 +348,22 @@ def save_scores(lab, results):
 
 
 def comparison_text(tasks, results, selections):
-    lines = []
+    sections = []
     for task in tasks:
         metric = primary_metric(task)
         values = results[task.key][0].set_index("version")[metric]
         base, tuned, own_base, own_tuned = values.loc[list(VERSIONS)]
-        validation = selections[task.key][2]
-        selected = validation.loc[validation["выбран"]].iloc[0]
-        cv_base = validation.iloc[0]["CV среднее"]
-        if task.key == "classification":
-            name, unit, direction = "macro-F1", "", 1
-        else:
-            name, unit, direction = "MAE", " МВт", -1
-        heldout_gain = (tuned - base) * direction
-        verdict = "улучшился" if heldout_gain > 1e-8 else "ухудшился" if heldout_gain < -1e-8 else "совпал"
-        lines.append(
-            f"**{task.title}.** По CV выбран вариант «{selected['гипотеза']}» "
-            f"({name} {selected['CV среднее']:.4f}{unit}, бейзлайн {cv_base:.4f}{unit}). "
-            f"На holdout {name} sklearn {verdict} относительно бейзлайна: "
-            f"{base:.4f} → {tuned:.4f}{unit}. Собственная реализация: "
-            f"{own_base:.4f} → {own_tuned:.4f}{unit}. "
-            f"Разница собственной модели и sklearn {name}: "
-            f"{own_base - base:+.4f}{unit} в бейзлайне, "
-            f"{own_tuned - tuned:+.4f}{unit} после настройки."
+        table = selections[task.key][2]
+        selected = table.loc[table["выбран"]].iloc[0]
+        name = "macro-F1" if task.key == "classification" else "MAE, МВт"
+        sections.append(
+            f"{task.title} ({name})\n"
+            f"По кросс-валидации выбран вариант «{selected['гипотеза']}».\n"
+            f"Среднее на фолдах: {table.iloc[0]['CV среднее']:.4f} до настройки "
+            f"и {selected['CV среднее']:.4f} после.\n"
+            f"Sklearn на тесте: {base:.4f} до настройки и {tuned:.4f} после.\n"
+            f"Своя модель на тесте: {own_base:.4f} до настройки и {own_tuned:.4f} после.\n"
+            f"Разница со sklearn на тесте: {own_base - base:+.4f} до настройки "
+            f"и {own_tuned - tuned:+.4f} после."
         )
-    return "\n\n".join(lines)
+    return "\n\n".join(sections)

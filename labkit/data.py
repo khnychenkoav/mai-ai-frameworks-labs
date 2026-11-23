@@ -1,4 +1,4 @@
-"""Загрузка исходных архивов UCI и общие разбиения для пяти ЛР."""
+"""Загрузка данных и разбиение выборок."""
 
 from dataclasses import dataclass
 from functools import lru_cache
@@ -96,12 +96,12 @@ def load_classification():
     assert np.isfinite(X_train).all() and np.isfinite(X_test).all()
     assert set(y_train) == set(y_test)
     overlaps = len(set(map(tuple, X_train)) & set(map(tuple, X_test)))
-    # Порядок строк авторов зависит от класса, поэтому фолды перемешиваем.
+    # В исходных файлах строки идут по классам.
     cv = tuple(StratifiedKFold(3, shuffle=True, random_state=SEED).split(X_train, y_train))
     return Task(
-        "classification", "Avila — автор фрагмента", AVILA_COLUMNS, X_train, X_test,
+        "classification", "Avila", AVILA_COLUMNS, X_train, X_test,
         y_train, y_test, cv, len(train) + len(test),
-        "Официальные train/test; 3 стратифицированных фолда внутри train.",
+        "Разбиение UCI, 3 стратифицированных фолда на train.",
         {"Точных совпадений векторов признаков между train/test": overlaps},
     )
 
@@ -118,7 +118,7 @@ def _layout_keys(x, resolution=None):
 @lru_cache(maxsize=None)
 def load_regression():
     with _archive("wave") as archive, archive.open("WECs_DataSet/Tasmania_Data.csv") as source:
-        # Файл без заголовка: X1…X16, Y1…Y16, P1…P16, Powerall.
+        # Читаем 32 координаты и столбец Powerall.
         columns = [*range(32), 48]
         frame = pd.read_csv(source, header=None, usecols=columns, dtype=np.float64)
     source_rows = len(frame)
@@ -126,9 +126,9 @@ def load_regression():
     coordinates, power = finite[:, :32], finite[:, 32]
     valid = ((coordinates >= 0) & (coordinates <= 566)).all(axis=1) & (power > 0)
     X = coordinates[valid]
-    y = power[valid] / 1_000_000  # Вт → МВт.
+    y = power[valid] / 1_000_000  # Перевод мощности из Вт в МВт.
 
-    # Оставляем первую строку для каждой точной конфигурации, с учётом перестановок WEC.
+    # Удаляем одинаковые раскладки с учетом перестановок.
     _, distinct = np.unique(_layout_keys(X), axis=0, return_index=True)
     rng = np.random.default_rng(SEED)
     sample = rng.choice(np.sort(distinct), size=min(7200, len(distinct)), replace=False)
@@ -140,9 +140,9 @@ def load_regression():
     assert not set(groups[train]) & set(groups[test])
     cv = tuple(GroupKFold(n_splits=3).split(X[train], y[train], groups[train]))
     return Task(
-        "regression", "Tasmania — суммарная мощность (МВт)", LAYOUT_COLUMNS,
+        "regression", "Tasmania", LAYOUT_COLUMNS,
         X[train], X[test], y[train], y[test], cv, source_rows,
-        "Групповой holdout 20% групп; 3 групповых фолда внутри train.",
+        "20% групп на тесте, 3 групповых фолда на train.",
         {
             "Строк после проверки диапазонов и пропусков": int(valid.sum()),
             "Точных уникальных конфигураций": len(distinct),
@@ -157,7 +157,7 @@ def load_tasks():
 
 
 def layout_features(X):
-    """Признаки геометрии, инвариантные к нумерации преобразователей."""
+    """Геометрические признаки раскладки без учета нумерации."""
     layouts = X.reshape(-1, 2, 16).transpose(0, 2, 1)
     centers = layouts.mean(axis=1)
     spreads = layouts.std(axis=1)

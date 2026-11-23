@@ -1,4 +1,4 @@
-"""Реализации оценивателей без вызовов моделей scikit-learn."""
+"""Собственные реализации моделей."""
 
 from dataclasses import dataclass
 
@@ -17,7 +17,7 @@ def _class_weights(labels, n_classes, mode):
 
 
 class Neighbors:
-    """Brute-force KNN с пакетным вычислением расстояний."""
+    """KNN с полным перебором соседей."""
 
     def __init__(self, classification, n_neighbors=5, p=2, weights="uniform"):
         self.classification = classification
@@ -46,7 +46,7 @@ class Neighbors:
             nearest = np.argpartition(distance, k - 1, axis=1)[:, :k]
             distances = np.take_along_axis(distance, nearest, axis=1)
             boundary = distances.max(axis=1)
-            # При равенстве на границе k берём соседей в порядке строк train.
+            # При равном расстоянии берем соседа с меньшим индексом.
             total_tied = (distance == boundary[:, None]).sum(axis=1)
             selected_tied = (distances == boundary[:, None]).sum(axis=1)
             for row in np.flatnonzero(total_tied > selected_tied):
@@ -130,7 +130,7 @@ class SoftmaxRegression:
         self.n_iter_ = fit.nit
         self.converged_ = fit.success
         if not fit.success:
-            raise RuntimeError(f"L-BFGS не сошёлся: {fit.message}")
+            raise RuntimeError(f"L-BFGS не сошелся: {fit.message}")
         return self
 
     def predict_proba(self, X):
@@ -142,7 +142,7 @@ class SoftmaxRegression:
 
 @njit(cache=True)
 def _best_split(X, y, weight, features, min_leaf, n_classes):
-    """Полный перебор вещественных порогов с префиксными статистиками."""
+    """Поиск порога по накопленным суммам."""
     n = len(y)
     best_score = np.inf
     best_feature = -1
@@ -287,7 +287,7 @@ class Cart:
             feature, threshold, score = _best_split(
                 X_node, y_node, w_node, features[:feature_count], self.min_samples_leaf, n_classes
             )
-            # Если подмножество признаков константно, ищем допустимый разрез дальше.
+            # Если разреза нет, проверяем оставшиеся признаки.
             if feature < 0 and feature_count < n_features:
                 feature, threshold, score = _best_split(
                     X_node, y_node, w_node, features[feature_count:], self.min_samples_leaf, n_classes
@@ -318,7 +318,7 @@ class Cart:
 
 
 class BootstrapForest:
-    """Bootstrap объектов, случайные признаки в узлах, агрегация деревьев."""
+    """Лес с выборками с возвращением и случайными признаками."""
 
     def __init__(
         self, classification, n_estimators=32, max_depth=None, min_samples_leaf=1,
