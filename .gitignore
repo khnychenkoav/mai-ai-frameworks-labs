@@ -1,0 +1,9 @@
+.venv/
+.cache/
+__pycache__/
+.ipynb_checkpoints/
+*.py[cod]
+*.nbc
+*.nbi
+*.ipynb.tmp
+*.csv.tmp

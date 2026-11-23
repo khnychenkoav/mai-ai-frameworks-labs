@@ -1,0 +1,11 @@
+lab,task,algorithm,version,candidate,macro_f1,balanced_accuracy,accuracy,mae_mw,rmse_mw,r2
+1,classification,KNN,dummy,Мода,0.04851819149,0.08333333333,0.4106544026,,,
+1,classification,KNN,sklearn baseline,Бейзлайн,0.7182849258,0.6656673262,0.7495448884,,,
+1,classification,KNN,sklearn tuned,Робастное масштабирование,0.8833067023,0.8599873783,0.8674906582,,,
+1,classification,KNN,own baseline,Бейзлайн,0.7182849258,0.6656673262,0.7495448884,,,
+1,classification,KNN,own tuned,Робастное масштабирование,0.8833067023,0.8599873783,0.8674906582,,,
+1,regression,KNN,dummy,Медиана,,,,0.08752328729,0.1122796752,-5.570703987e-08
+1,regression,KNN,sklearn baseline,Бейзлайн,,,,0.05975367616,0.07875426601,0.5080217481
+1,regression,KNN,sklearn tuned,"Геометрия, k=11 и взвешивание",,,,0.05151003785,0.06928501419,0.619218054
+1,regression,KNN,own baseline,Бейзлайн,,,,0.05975367616,0.07875426601,0.5080217481
+1,regression,KNN,own tuned,"Геометрия, k=11 и взвешивание",,,,0.05151003785,0.06928501419,0.619218054
